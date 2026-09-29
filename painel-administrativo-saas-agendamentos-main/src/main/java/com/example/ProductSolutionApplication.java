@@ -1,0 +1,3 @@
+\npublic class ProductSolutionApplication {
+    \n    // ... existente code ...
+\n}

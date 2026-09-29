@@ -11,9 +11,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { formatDatePtBr } from "@/lib/date-utils"
-import type { Company } from "@/lib/companies"
-
-export type NewCompany = Omit<Company, "id" | "initials">
+import type { Company, NewCompany } from "@/lib/companies"
 
 export function CompanyRegistrationSheet({
   open,
@@ -58,15 +56,17 @@ export function CompanyRegistrationSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>Cadastrar empresa</SheetTitle>
+          <SheetTitle>Cadastrar cliente</SheetTitle>
           <SheetDescription>
             Os dados ficam disponíveis nesta sessão de demonstração.
           </SheetDescription>
         </SheetHeader>
         <form className="flex flex-col gap-5 px-4 pb-6" onSubmit={handleSubmit}>
           <section className="grid gap-3 sm:grid-cols-2">
-            <h3 className="text-sm font-semibold sm:col-span-2">Empresa</h3>
-            <Field label="Nome da empresa" name="name" required />
+            <h3 className="border-b border-border/70 pb-2 text-xs font-semibold text-primary sm:col-span-2">
+              Dados do cliente
+            </h3>
+            <Field label="Nome do cliente" name="name" required />
             <Field label="Tipo de negócio" name="businessType" required />
             <Field label="Serviços, separados por vírgula" name="products" required />
             <Field label="WhatsApp" name="whatsapp" type="tel" required />
@@ -76,7 +76,9 @@ export function CompanyRegistrationSheet({
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2">
-            <h3 className="text-sm font-semibold sm:col-span-2">Responsável</h3>
+            <h3 className="border-b border-border/70 pb-2 text-xs font-semibold text-chart-3 sm:col-span-2">
+              Responsável
+            </h3>
             <Field label="Nome completo" name="ownerName" required />
             <Field label="CPF" name="ownerCpf" required />
             <Field
@@ -88,7 +90,9 @@ export function CompanyRegistrationSheet({
           </section>
 
           <section className="grid gap-3 sm:grid-cols-2">
-            <h3 className="text-sm font-semibold sm:col-span-2">Assinatura</h3>
+            <h3 className="border-b border-border/70 pb-2 text-xs font-semibold text-chart-2 sm:col-span-2">
+              Assinatura
+            </h3>
             <Field
               label="Vencimento (dia do mês)"
               name="subscriptionDay"
@@ -118,7 +122,9 @@ export function CompanyRegistrationSheet({
             </label>
           </section>
 
-          <Button type="submit">Salvar empresa</Button>
+          <Button type="submit" className="w-full shadow-sm">
+            Salvar cliente
+          </Button>
         </form>
       </SheetContent>
     </Sheet>

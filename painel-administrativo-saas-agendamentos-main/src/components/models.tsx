@@ -1,0 +1,6 @@
+title: Models;
+components: [
+  ModelForm,
+  ModelTable
+]
+

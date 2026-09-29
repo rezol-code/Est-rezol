@@ -1,0 +1,30 @@
+<html>
+  <!--
+    A HTML template to render a React app
+  -->
+  <body>
+    <h1>Templates</h1>
+    <button id="templates-button">Selecionar Template</button>
+    <div id="templates-container"></div>
+  </body>
+    <script src="https://unpkg.com/react@17.0.2/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17.0.2/umd/react-dom.production.min.js"></script>
+    <script>
+      import React from 'react';
+      function Template() {
+        return (
+        >
+          <button>Selecione um Template</button>
+        />
+        );
+      }
+    function App() {
+      return (
+        >
+          <Template />
+        />
+      );
+    }
+      ReactDOM.render(<App />, document.getElementById('templates-container'));
+    </script>
+</html>

@@ -1,7 +1,13 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { CalendarClock, MessageSquareText, Pencil, X } from "lucide-react"
+import {
+  CalendarClock,
+  CalendarPlus,
+  MessageSquareText,
+  Pencil,
+  X,
+} from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -28,11 +34,12 @@ import {
 } from "@/components/ui/table"
 import {
   filterAppointments,
+  type Appointment,
   type AppointmentView,
 } from "@/lib/appointments"
 import { formatDatePtBr } from "@/lib/date-utils"
-import { clients, getClientsByCompany } from "@/lib/clients"
-import { companies, type Company } from "@/lib/companies"
+import type { Client } from "@/lib/clients"
+import type { Company } from "@/lib/companies"
 
 const ALL = "all"
 
@@ -62,25 +69,32 @@ function groupByClient(items: AppointmentView[]) {
 }
 
 export function AppointmentsTable({
-  initialCompanyId = companies[0]?.id ?? ALL,
-  companyOptions = companies,
+  initialCompanyId = ALL,
+  companyOptions = [],
+  clientOptions = [],
+  appointmentOptions = [],
+  onCreateAppointment,
 }: {
   initialCompanyId?: string
   companyOptions?: Company[]
+  clientOptions?: Client[]
+  appointmentOptions?: Appointment[]
+  onCreateAppointment: (client: Client, appointment: Appointment) => void
 }) {
   const [companyId, setCompanyId] = useState(initialCompanyId)
   const [clientId, setClientId] = useState(ALL)
   const [cancelledIds, setCancelledIds] = useState<string[]>([])
   const [rescheduling, setRescheduling] = useState<AppointmentView | null>(null)
+  const [addingAppointment, setAddingAppointment] = useState(false)
   const [rescheduledValues, setRescheduledValues] = useState<
     Record<string, { date: string; time: string }>
   >({})
   const [feedback, setFeedback] = useState("")
 
   const companyClients = useMemo(() => {
-    if (companyId === ALL) return clients
-    return getClientsByCompany(companyId)
-  }, [companyId])
+    if (companyId === ALL) return clientOptions
+    return clientOptions.filter((client) => client.companyId === companyId)
+  }, [clientOptions, companyId])
 
   const views = useMemo(() => {
     const selectedClient =
@@ -91,10 +105,19 @@ export function AppointmentsTable({
     return filterAppointments({
       companyId: companyId === ALL ? undefined : companyId,
       clientId: selectedClient,
-    })
+    }, appointmentOptions, clientOptions, companyOptions)
       .filter((item) => !cancelledIds.includes(item.id))
       .map((item) => ({ ...item, ...rescheduledValues[item.id] }))
-  }, [cancelledIds, clientId, companyId, companyClients, rescheduledValues])
+  }, [
+    appointmentOptions,
+    cancelledIds,
+    clientId,
+    clientOptions,
+    companyId,
+    companyClients,
+    companyOptions,
+    rescheduledValues,
+  ])
 
   const groups = useMemo(() => groupByClient(views), [views])
   const selectedClient = companyClients.find((client) => client.id === clientId)
@@ -105,14 +128,26 @@ export function AppointmentsTable({
     : "Agendamentos por cliente"
 
   const description = selectedClient
-    ? `Horários deste cliente${companyId !== ALL ? ` em ${companies.find((c) => c.id === companyId)?.name}` : ""}.`
-    : "Escolha a empresa e o cliente para ver só os horários daquela pessoa, ou deixe em todos para ver cada cliente agrupado."
+    ? `Horários deste cliente${companyId !== ALL ? ` em ${companyOptions.find((company) => company.id === companyId)?.name}` : ""}.`
+    : companyOptions.length === 0
+      ? "Cadastre um cliente antes de criar o primeiro agendamento."
+      : "Agendamentos cadastrados nesta sessão, agrupados por cliente."
 
-  function handleCancel(item: AppointmentView) {
+  async function handleCancel(item: AppointmentView) {
     if (!window.confirm(`Cancelar o agendamento de ${item.clientName}?`)) return
 
-    setCancelledIds((current) => [...current, item.id])
-    setFeedback(`Agendamento de ${item.clientName} cancelado.`)
+    try {
+      const response = await fetch(`/api/appointments/${item.id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('Erro ao cancelar agendamento')
+      
+      setCancelledIds((current) => [...current, item.id])
+      setFeedback(`Agendamento de ${item.clientName} cancelado.`)
+    } catch (error) {
+      console.error('Erro ao cancelar agendamento:', error)
+      alert('Erro ao cancelar agendamento. Tente novamente.')
+    }
   }
 
   function handleReschedule(item: AppointmentView) {
@@ -120,30 +155,92 @@ export function AppointmentsTable({
     setFeedback("")
   }
 
-  function handleRescheduleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleRescheduleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!rescheduling) return
 
     const formData = new FormData(event.currentTarget)
     const date = String(formData.get("date"))
     const time = String(formData.get("time"))
-    setRescheduledValues((current) => ({
-      ...current,
-      [rescheduling.id]: { date, time },
-    }))
-    setFeedback(`Agendamento de ${rescheduling.clientName} reagendado.`)
-    setRescheduling(null)
+    
+    try {
+      const response = await fetch(`/api/appointments/${rescheduling.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, time }),
+      })
+      if (!response.ok) throw new Error('Erro ao reagendar agendamento')
+      
+      setRescheduledValues((current) => ({
+        ...current,
+        [rescheduling.id]: { date, time },
+      }))
+      setFeedback(`Agendamento de ${rescheduling.clientName} reagendado.`)
+      setRescheduling(null)
+    } catch (error) {
+      console.error('Erro ao reagendar agendamento:', error)
+      alert('Erro ao reagendar agendamento. Tente novamente.')
+    }
+  }
+
+  function handleAddAppointmentSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const companyId = String(formData.get("companyId"))
+    const company = companyOptions.find((option) => option.id === companyId)
+    if (!company) return
+
+    const clientName = String(formData.get("clientName")).trim()
+    const client: Client = {
+      id: crypto.randomUUID(),
+      companyId,
+      name: clientName,
+      initials: clientName
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? "")
+        .join(""),
+      whatsapp: String(formData.get("clientWhatsapp")).trim(),
+    }
+    const appointment: Appointment = {
+      id: crypto.randomUUID(),
+      clientId: client.id,
+      service: String(formData.get("service")).trim(),
+      date: String(formData.get("date")),
+      time: String(formData.get("time")),
+      status: formData.get("status") === "Confirmado" ? "Confirmado" : "Pendente",
+    }
+
+    onCreateAppointment(client, appointment)
+    setFeedback(`Agendamento de ${client.name} criado.`)
+    form.reset()
+    setAddingAppointment(false)
   }
 
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="border-b py-4">
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <CardTitle>{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setAddingAppointment(true)}
+            disabled={companyOptions.length === 0}
+            title={companyOptions.length === 0 ? "Cadastre uma empresa primeiro" : undefined}
+          >
+            <CalendarPlus data-icon="inline-start" />
+            Novo agendamento
+          </Button>
+        </div>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row">
           <label className="flex min-w-0 flex-1 flex-col gap-1">
             <span className="text-xs font-medium text-muted-foreground">
-              Empresa assinante
+              Cliente
             </span>
             <select
               value={companyId}
@@ -153,7 +250,7 @@ export function AppointmentsTable({
               }}
               className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              <option value={ALL}>Todas as empresas</option>
+              <option value={ALL}>Todos os clientes</option>
               {companyOptions.map((company) => (
                 <option key={company.id} value={company.id}>
                   {company.name}
@@ -185,18 +282,24 @@ export function AppointmentsTable({
         </div>
       </CardHeader>
       {feedback ? (
-        <p className="border-b px-4 py-3 text-sm text-emerald-700" role="status">
+        <p className="border-b bg-secondary/40 px-4 py-3 text-sm text-chart-1" role="status">
           {feedback}
         </p>
       ) : null}
       {views.length === 0 ? (
-        <p className="px-4 py-8 text-sm text-muted-foreground">
-          Nenhum agendamento para este filtro.
-        </p>
+        <div className="flex flex-col items-center gap-1 px-4 py-10 text-center">
+          <CalendarClock className="mb-1 size-6 text-primary" aria-hidden="true" />
+          <p className="text-sm font-medium text-foreground">
+            Nenhum agendamento cadastrado
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Crie um agendamento para testar a lista e as ações.
+          </p>
+        </div>
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="bg-secondary/55 hover:bg-secondary/55">
               {selectedClient ? null : (
                 <TableHead className="px-4">Cliente</TableHead>
               )}
@@ -225,7 +328,7 @@ export function AppointmentsTable({
       )}
       <div className="flex items-center gap-2 border-t px-4 py-3 text-xs text-muted-foreground">
         <MessageSquareText className="size-3.5" aria-hidden="true" />
-        Confirmações são enviadas automaticamente via WhatsApp.
+        A confirmação por WhatsApp ainda não está integrada.
       </div>
       <Sheet
         open={rescheduling !== null}
@@ -268,6 +371,92 @@ export function AppointmentsTable({
               <Button type="submit">Salvar novo horário</Button>
             </form>
           ) : null}
+        </SheetContent>
+      </Sheet>
+      <Sheet open={addingAppointment} onOpenChange={setAddingAppointment}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Novo agendamento</SheetTitle>
+            <SheetDescription>
+              O registro e o cliente ficam disponíveis nesta sessão de demonstração.
+            </SheetDescription>
+          </SheetHeader>
+          <form
+            className="flex flex-col gap-4 px-4 pb-6"
+            onSubmit={handleAddAppointmentSubmit}
+          >
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Cliente
+              <select
+                name="companyId"
+                required
+                defaultValue=""
+                className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="" disabled>Selecione um cliente</option>
+                {companyOptions.map((company) => (
+                  <option key={company.id} value={company.id}>{company.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Cliente
+              <input
+                name="clientName"
+                required
+                className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              WhatsApp
+              <input
+                name="clientWhatsapp"
+                type="tel"
+                required
+                className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Serviço
+              <input
+                name="service"
+                required
+                className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Data
+                <input
+                  name="date"
+                  type="date"
+                  required
+                  className="h-9 min-w-0 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm font-medium">
+                Horário
+                <input
+                  name="time"
+                  type="time"
+                  required
+                  className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                />
+              </label>
+            </div>
+            <label className="flex flex-col gap-1 text-sm font-medium">
+              Status
+              <select
+                name="status"
+                defaultValue="Pendente"
+                className="h-9 rounded-lg border border-input bg-background px-3 font-normal outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option>Pendente</option>
+                <option>Confirmado</option>
+              </select>
+            </label>
+            <Button type="submit">Salvar agendamento</Button>
+          </form>
         </SheetContent>
       </Sheet>
     </Card>
@@ -349,8 +538,8 @@ function ClientAppointmentRows({
               variant={item.status === "Confirmado" ? "secondary" : "outline"}
               className={
                 item.status === "Confirmado"
-                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                  : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                  ? "border-transparent bg-chart-1/10 text-chart-1"
+                  : "border-transparent bg-accent text-accent-foreground"
               }
             >
               {item.status}

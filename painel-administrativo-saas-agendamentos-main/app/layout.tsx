@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Painel de Agendamentos',
-  description: 'Painel administrativo para gestão de agendamentos, clientes e mensagens.',
+  title: 'Painel Administrativo SaaS',
+  description: 'Sistema de gestão de agendamentos e empresas assinantes.',
   generator: 'v0.app',
   icons: {
     icon: [

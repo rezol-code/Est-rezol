@@ -45,8 +45,8 @@ import {
 
 function statusClass(status: Company["subscriptionStatus"]) {
   return status === "Em dia"
-    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-    : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+    ? "border-transparent bg-chart-1/10 text-chart-1"
+    : "border-transparent bg-accent text-accent-foreground"
 }
 
 export function CompaniesTable({
@@ -62,16 +62,16 @@ export function CompaniesTable({
     <>
       <Card className="gap-0 py-0">
         <CardHeader className="border-b py-4">
-          <CardTitle>Empresas assinantes</CardTitle>
+          <CardTitle>Meus Clientes</CardTitle>
           <CardDescription>
-            Estabelecimentos com plano ativo no SaaS. Abra os detalhes para ver
+            Empresas que contratam seus serviços. Abra os detalhes para ver
             cadastro, funcionamento e assinatura.
           </CardDescription>
         </CardHeader>
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="px-4">Empresa</TableHead>
+            <TableRow className="bg-secondary/55 hover:bg-secondary/55">
+              <TableHead className="px-4">Cliente</TableHead>
               <TableHead>Responsável</TableHead>
               <TableHead>Tipo</TableHead>
               <TableHead>WhatsApp</TableHead>
@@ -81,56 +81,72 @@ export function CompaniesTable({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {companies.map((company) => (
-              <TableRow key={company.id}>
-                <TableCell className="px-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex size-9 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
-                      {company.initials}
-                    </span>
+            {companies.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-36 text-center">
+                  <div className="flex flex-col items-center gap-1">
+                    <Building2 className="mb-1 size-5 text-primary" aria-hidden="true" />
                     <span className="font-medium text-foreground">
-                      {company.name}
+                      Nenhum cliente cadastrado
                     </span>
-                  </div>
-                </TableCell>
-                <TableCell>{company.ownerName}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {company.businessType}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {company.whatsapp}
-                </TableCell>
-                <TableCell>
-                  {formatCurrency(company.subscriptionValue)}
-                </TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={statusClass(company.subscriptionStatus)}
-                  >
-                    {company.subscriptionStatus}
-                  </Badge>
-                </TableCell>
-                <TableCell className="px-4">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => onViewAppointments?.(company.id)}
-                    >
-                      Agendamentos
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelected(company)}
-                    >
-                      Detalhes
-                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Use "Cadastrar cliente" para iniciar.
+                    </span>
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              companies.map((company) => (
+                <TableRow key={company.id}>
+                  <TableCell className="px-4">
+                    <div className="flex items-center gap-3">
+                      <span className="flex size-9 items-center justify-center rounded-full bg-muted text-xs font-medium text-muted-foreground">
+                        {company.initials}
+                      </span>
+                      <span className="font-medium text-foreground">
+                        {company.name}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{company.ownerName}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {company.businessType}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {company.whatsapp}
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(company.subscriptionValue)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="outline"
+                      className={statusClass(company.subscriptionStatus)}
+                    >
+                      {company.subscriptionStatus}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="px-4">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onViewAppointments?.(company.id)}
+                      >
+                        Agendamentos
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelected(company)}
+                      >
+                        Detalhes
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -187,7 +203,7 @@ export function CompaniesTable({
                   </h3>
                   <InfoRow
                     icon={Building2}
-                    label="Empresa"
+                    label="Cliente"
                     value={selected.name}
                   />
                   <InfoRow
